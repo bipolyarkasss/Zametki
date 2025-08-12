@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Нитьки - Заметки</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Меню -->
+    <div class="toolbar">
+        <button id="text-btn" class="tool-btn active">✏️ Текст</button>
+        <button id="draw-btn" class="tool-btn">🎨 Рисовать</button>
+        <input type="color" id="color-picker" value="#000000">
+        <button id="clear-btn" class="tool-btn">🧹 Очистить</button>
+    </div>
+
+    <!-- Холст -->
+    <div class="canvas-container" id="canvas-container">
+        <canvas id="main-canvas"></canvas>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
