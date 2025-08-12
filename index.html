@@ -3,23 +3,263 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Нитьки - Заметки</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Нитьки - Рисование + Фото</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+            font-family: Arial;
+        }
+        #toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #f0f0f0;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        .tool-btn {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+        }
+        .tool-btn.active {
+            background: #4CAF50;
+            color: white;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 50px);
+            overflow: hidden;
+            background: white;
+        }
+        #main-canvas {
+            display: block;
+            background: white;
+            touch-action: none;
+        }
+        .image-element {
+            position: absolute;
+            max-width: 300px;
+            cursor: move;
+            user-select: none;
+        }
+        .delete-btn {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: red;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        #file-input {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-    <!-- Меню -->
-    <div class="toolbar">
-        <button id="text-btn" class="tool-btn active">✏️ Текст</button>
-        <button id="draw-btn" class="tool-btn">🎨 Рисовать</button>
+    <div id="toolbar">
+        <button id="draw-btn" class="tool-btn active">✏️ Рисовать</button>
+        <button id="image-btn" class="tool-btn">🖼️ Добавить фото</button>
         <input type="color" id="color-picker" value="#000000">
         <button id="clear-btn" class="tool-btn">🧹 Очистить</button>
+        <input type="file" id="file-input" accept="image/*">
     </div>
 
-    <!-- Холст -->
-    <div class="canvas-container" id="canvas-container">
+    <div id="canvas-container">
         <canvas id="main-canvas"></canvas>
     </div>
 
-    <script src="app.js"></script>
+    <script>
+        // Инициализация
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let currentColor = '#000000';
+        let currentTool = 'draw';
+        let images = [];
+        
+        // Размеры холста
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 50;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Инструменты
+        document.getElementById('draw-btn').addEventListener('click', () => {
+            currentTool = currentTool === 'draw' ? null : 'draw';
+            document.getElementById('draw-btn').classList.toggle('active');
+        });
+
+        document.getElementById('image-btn').addEventListener('click', () => {
+            document.getElementById('file-input').click();
+        });
+
+        document.getElementById('color-picker').addEventListener('input', (e) => {
+            currentColor = e.target.value;
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.querySelectorAll('.image-element').forEach(el => el.remove());
+            images = [];
+        });
+
+        // Загрузка изображений
+        document.getElementById('file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                addImage(event.target.result, 100, 100);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Вставка через Ctrl+V
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        addImage(event.target.result, e.clientX, e.clientY);
+                    };
+                    reader.readAsDataURL(blob);
+                    break;
+                }
+            }
+        });
+
+        function addImage(src, x, y) {
+            const img = new Image();
+            img.onload = function() {
+                const imgElement = document.createElement('img');
+                imgElement.src = src;
+                imgElement.className = 'image-element';
+                imgElement.style.left = `${x}px`;
+                imgElement.style.top = `${y}px`;
+                
+                // Кнопка удаления
+                const deleteBtn = document.createElement('div');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.innerHTML = '×';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    imgElement.remove();
+                });
+                
+                imgElement.appendChild(deleteBtn);
+                document.getElementById('canvas-container').appendChild(imgElement);
+                
+                // Перемещение изображения
+                makeDraggable(imgElement);
+            };
+            img.src = src;
+        }
+
+        function makeDraggable(element) {
+            let isDragging = false;
+            let offsetX, offsetY;
+            
+            element.addEventListener('mousedown', startDrag);
+            element.addEventListener('touchstart', startDrag);
+            
+            function startDrag(e) {
+                e.preventDefault();
+                isDragging = true;
+                
+                if (e.type === 'mousedown') {
+                    offsetX = e.clientX - element.getBoundingClientRect().left;
+                    offsetY = e.clientY - element.getBoundingClientRect().top;
+                } else {
+                    offsetX = e.touches[0].clientX - element.getBoundingClientRect().left;
+                    offsetY = e.touches[0].clientY - element.getBoundingClientRect().top;
+                }
+                
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('touchmove', drag);
+                document.addEventListener('mouseup', stopDrag);
+                document.addEventListener('touchend', stopDrag);
+            }
+            
+            function drag(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                
+                const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+                const clientY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
+                
+                element.style.left = `${clientX - offsetX}px`;
+                element.style.top = `${clientY - offsetY}px`;
+            }
+            
+            function stopDrag() {
+                isDragging = false;
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('touchmove', drag);
+            }
+        }
+
+        // Рисование
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        function startDrawing(e) {
+            if (currentTool !== 'draw') return;
+            isDrawing = true;
+            
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
+            
+            ctx.beginPath();
+            ctx.moveTo(clientX - rect.left, clientY - rect.top);
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            e.preventDefault();
+        }
+
+        function draw(e) {
+            if (!isDrawing || currentTool !== 'draw') return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
+            
+            ctx.lineTo(clientX - rect.left, clientY - rect.top);
+            ctx.stroke();
+            e.preventDefault();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+    </script>
 </body>
 </html>
