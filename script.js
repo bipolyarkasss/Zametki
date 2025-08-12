@@ -108,13 +108,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         confirmSaveBtn.addEventListener('click', saveNote);
-        document.getElementById('deleteTextBtn').addEventListener('click', () => {
-    if (selectedItem && selectedItem.type === 'text') {
-        selectedItem.element.remove();
-        canvasItems = canvasItems.filter(item => item.id !== selectedItem.id);
-        selectedItem = null;
-    }
-});
     }
     
     function renderNotesList() {
@@ -175,86 +168,65 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function setActiveTool(tool) {
-    activeTool = tool;
-    
-    // Обновляем активные кнопки
-    textTool.classList.remove('active');
-    photoTool.classList.remove('active');
-    drawTool.classList.remove('active');
-    
-    if (tool === 'text') {
-        textTool.classList.add('active');
-        drawingTools.style.display = 'none';
-        textTools.style.display = 'flex';
-        setupTextMode();
-    } else if (tool === 'photo') {
-        photoTool.classList.add('active');
-        drawingTools.style.display = 'none';
-        textTools.style.display = 'none';
-        showPhotoModal();
-    } else if (tool === 'draw') {
-        drawTool.classList.add('active');
-        drawingTools.style.display = 'flex';
-        textTools.style.display = 'none';
-        setupDrawMode();
+        activeTool = tool;
+        
+        // Обновляем активные кнопки
+        textTool.classList.remove('active');
+        photoTool.classList.remove('active');
+        drawTool.classList.remove('active');
+        
+        if (tool === 'text') {
+            textTool.classList.add('active');
+            drawingTools.style.display = 'none';
+            setupTextMode();
+        } else if (tool === 'photo') {
+            photoTool.classList.add('active');
+            drawingTools.style.display = 'none';
+            showPhotoModal();
+        } else if (tool === 'draw') {
+            drawTool.classList.add('active');
+            drawingTools.style.display = 'flex';
+            setupDrawMode();
+        }
     }
-}
     
-function setupTextMode() {
-    const noteCanvas = document.getElementById('noteCanvas');
-    
-    noteCanvas.onclick = (e) => {
-        if (activeTool !== 'text' || e.target !== noteCanvas) return;
+    function setupTextMode() {
+        const noteCanvas = document.getElementById('noteCanvas');
         
-        // Создаем новый текстовый элемент
-        const textItem = document.createElement('div');
-        textItem.className = 'canvas-item text-item';
-        textItem.contentEditable = true;
-        textItem.style.left = `${e.clientX - noteCanvas.getBoundingClientRect().left}px`;
-        textItem.style.top = `${e.clientY - noteCanvas.getBoundingClientRect().top}px`;
-        textItem.innerHTML = 'Нажмите чтобы редактировать текст';
-        
-        // Создаем кнопку удаления
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn';
-        deleteBtn.innerHTML = '×';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            deleteTextItem(textItem);
+        noteCanvas.onclick = (e) => {
+            if (activeTool !== 'text' || e.target !== noteCanvas) return;
+            
+            // Создаем новый текстовый элемент
+            const textItem = document.createElement('div');
+            textItem.className = 'canvas-item text-item';
+            textItem.contentEditable = true;
+            textItem.style.left = `${e.clientX - noteCanvas.getBoundingClientRect().left}px`;
+            textItem.style.top = `${e.clientY - noteCanvas.getBoundingClientRect().top}px`;
+            textItem.innerHTML = 'Нажмите чтобы редактировать текст';
+            
+            // Добавляем элемент на canvas
+            noteCanvas.appendChild(textItem);
+            
+            // Добавляем в массив элементов
+            const itemId = Date.now().toString();
+            canvasItems.push({
+                id: itemId,
+                type: 'text',
+                element: textItem,
+                x: parseInt(textItem.style.left),
+                y: parseInt(textItem.style.top),
+                width: 200,
+                height: 50,
+                content: 'Нажмите чтобы редактировать текст'
+            });
+            
+            // Устанавливаем обработчики для перемещения
+            setupItemInteractions(textItem, itemId);
+            
+            // Фокусируемся на новом элементе
+            textItem.focus();
         };
-        
-        // Добавляем элементы на canvas
-        textItem.appendChild(deleteBtn);
-        noteCanvas.appendChild(textItem);
-        
-        // Добавляем в массив элементов
-        const itemId = Date.now().toString();
-        canvasItems.push({
-            id: itemId,
-            type: 'text',
-            element: textItem,
-            x: parseInt(textItem.style.left),
-            y: parseInt(textItem.style.top),
-            width: 200,
-            height: 50,
-            content: 'Нажмите чтобы редактировать текст'
-        });
-        
-        // Устанавливаем обработчики для перемещения
-        setupItemInteractions(textItem, itemId);
-        
-        // Фокусируемся на новом элементе
-        textItem.focus();
-    };
-}
-
-function deleteTextItem(element) {
-    // Удаляем из DOM
-    element.remove();
-    
-    // Удаляем из массива элементов
-    canvasItems = canvasItems.filter(item => item.element !== element);
-}
+    }
     
     function showPhotoModal() {
         photoDataUrl = '';
@@ -319,65 +291,61 @@ function deleteTextItem(element) {
         input.click();
     }
     
-function addPhotoToCanvas() {
-    if (!photoDataUrl) return;
-    
-    const noteCanvas = document.getElementById('noteCanvas');
-    const rect = noteCanvas.getBoundingClientRect();
-    
-    // Создаем элемент изображения
-    const img = document.createElement('img');
-    img.className = 'canvas-item photo-item';
-    img.src = photoDataUrl;
-    img.style.left = `${rect.width / 2 - 100}px`;
-    img.style.top = `${rect.height / 2 - 100}px`;
-    
-    // Создаем кнопку удаления
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'delete-btn';
-    deleteBtn.innerHTML = '×';
-    deleteBtn.onclick = (e) => {
-        e.stopPropagation();
-        img.remove();
-        canvasItems = canvasItems.filter(item => item.element !== img);
-    };
-    
-    // Добавляем элементы
-    img.appendChild(deleteBtn);
-    noteCanvas.appendChild(img);
-    
-    // Добавляем в массив элементов
-    const itemId = Date.now().toString();
-    canvasItems.push({
-        id: itemId,
-        type: 'photo',
-        element: img,
-        x: parseInt(img.style.left),
-        y: parseInt(img.style.top),
-        width: 200,
-        height: 200,
-        content: photoDataUrl
-    });
-    
-    // Устанавливаем обработчики для перемещения
-    setupItemInteractions(img, itemId);
-    
-    // Закрываем модальное окно
-    photoModal.style.display = 'none';
-}
+    function addPhotoToCanvas() {
+        if (!photoDataUrl) return;
+        
+        const noteCanvas = document.getElementById('noteCanvas');
+        const rect = noteCanvas.getBoundingClientRect();
+        
+        // Создаем элемент изображения
+        const img = document.createElement('img');
+        img.className = 'canvas-item photo-item';
+        img.src = photoDataUrl;
+        img.style.left = `${rect.width / 2 - 100}px`;
+        img.style.top = `${rect.height / 2 - 100}px`;
+        
+        noteCanvas.appendChild(img);
+        
+        // Добавляем в массив элементов
+        const itemId = Date.now().toString();
+        canvasItems.push({
+            id: itemId,
+            type: 'photo',
+            element: img,
+            x: parseInt(img.style.left),
+            y: parseInt(img.style.top),
+            width: 200,
+            height: 200,
+            content: photoDataUrl
+        });
+        
+        // Устанавливаем обработчики для перемещения
+        setupItemInteractions(img, itemId);
+        
+        // Закрываем модальное окно
+        photoModal.style.display = 'none';
+    }
     
 function setupDrawMode() {
     const noteCanvas = document.getElementById('noteCanvas');
     
     // Удаляем предыдущий canvas для рисования
     const prevCanvas = document.querySelector('.drawing-item');
-    if (prevCanvas) return; // Не создаем новый, если уже есть
+    if (prevCanvas) prevCanvas.remove();
     
     // Создаем новый canvas для рисования
     const canvas = document.createElement('canvas');
     canvas.className = 'drawing-item';
+    canvas.style.position = 'absolute';
+    canvas.style.left = '0';
+    canvas.style.top = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
     canvas.width = noteCanvas.offsetWidth;
     canvas.height = noteCanvas.offsetHeight;
+    
+    // Устанавливаем pointer-events в auto, чтобы canvas мог получать события мыши
+    canvas.style.pointerEvents = 'auto';
     
     noteCanvas.appendChild(canvas);
     
@@ -403,6 +371,7 @@ function setupDrawMode() {
         isDrawing = true;
         [lastX, lastY] = [pos.x, pos.y];
         
+        // Начинаем новый путь
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
     });
@@ -429,15 +398,49 @@ function setupDrawMode() {
     canvas.addEventListener('mouseout', () => {
         isDrawing = false;
     });
+    
+    // Обработчики для сенсорных устройств
+    canvas.addEventListener('touchstart', (e) => {
+        if (activeTool !== 'draw') return;
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const pos = getPosition(touch);
+        isDrawing = true;
+        [lastX, lastY] = [pos.x, pos.y];
+        
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+    });
+    
+    canvas.addEventListener('touchmove', (e) => {
+        if (!isDrawing || activeTool !== 'draw') return;
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const pos = getPosition(touch);
+        
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        
+        [lastX, lastY] = [pos.x, pos.y];
+    });
+    
+    canvas.addEventListener('touchend', () => {
+        isDrawing = false;
+    });
 }
     
-function setupItemInteractions(element, itemId) {
+    function setupItemInteractions(element, itemId) {
     let isDragging = false;
     let offsetX, offsetY;
-    let startWidth, startHeight;
     
     element.onmousedown = (e) => {
-        if (activeTool === 'draw' || e.target.classList.contains('delete-btn')) return;
+        if (activeTool === 'draw') return;
         
         // Выбираем элемент
         selectItem(itemId);
@@ -446,8 +449,6 @@ function setupItemInteractions(element, itemId) {
         isDragging = true;
         offsetX = e.clientX - element.getBoundingClientRect().left;
         offsetY = e.clientY - element.getBoundingClientRect().top;
-        startWidth = element.offsetWidth;
-        startHeight = element.offsetHeight;
         
         // Для текстовых элементов - разрешаем редактирование
         if (element.classList.contains('text-item')) {
@@ -467,8 +468,6 @@ function setupItemInteractions(element, itemId) {
             const item = canvasItems.find(item => item.id === itemId);
             if (item) {
                 item.content = element.innerHTML;
-                item.width = element.offsetWidth;
-                item.height = element.offsetHeight;
             }
         };
     }
